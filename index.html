@@ -336,7 +336,11 @@ function closeSheets() { ['view', 'edit', 'menu', 'chpw'].forEach(id => sheet(id
 let toastT;
 function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.remove('hidden'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.add('hidden'), 1800); }
 function setStatus(msg, bad) { const s = $('status'); s.textContent = msg; s.classList.toggle('bad', !!bad); }
-function syncLine() { return S.offline ? 'Offline — read only (showing last synced copy)' : { const n = live().length; return n + (n === 1 ? ' item' : ' items') + ' · synced'; } }
+function syncLine() {
+  if (S.offline) return 'Offline — read only (showing last synced copy)';
+  const n = live().length;
+  return n + (n === 1 ? ' item' : ' items') + ' · synced';
+}
 function busy(btn, on, label) { btn.disabled = on; if (label) btn.textContent = label; }
 function el(tag, props, ...kids) {
   const n = document.createElement(tag);
