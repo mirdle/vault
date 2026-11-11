@@ -1,0 +1,642 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src https://api.github.com; img-src data:; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex,nofollow">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Vault">
+<meta name="theme-color" content="#14161a">
+<title>Vault</title>
+<style>
+:root{
+  --bg:#f4f5f7; --panel:#fff; --text:#16181d; --muted:#667085; --line:#e3e6ea;
+  --accent:#2f6fec; --accent-text:#fff; --danger:#d0393e; --ok:#1f9d55; --field:#f8f9fb;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#14161a; --panel:#1d2026; --text:#e9ebef; --muted:#9aa3b2; --line:#2c313a;
+    --accent:#5b8ff9; --accent-text:#0b0d10; --danger:#f26b6f; --ok:#4cc38a; --field:#252932; }
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font:16px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+body{min-height:100vh;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+.hidden{display:none!important}
+.wrap{max-width:640px;margin:0 auto;padding:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px}
+h1{font-size:22px;margin:0 0 4px} h2{font-size:18px;margin:0 0 12px}
+p.muted,.muted{color:var(--muted);font-size:14px}
+label{display:block;font-size:13px;color:var(--muted);margin:12px 0 4px}
+input,textarea,select{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:var(--field);color:var(--text);font:inherit}
+textarea{min-height:80px;resize:vertical}
+input:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:-1px}
+button{font:inherit;border:1px solid var(--line);background:var(--field);color:var(--text);padding:10px 14px;border-radius:10px;cursor:pointer}
+button.primary{background:var(--accent);color:var(--accent-text);border-color:var(--accent);font-weight:600}
+button.danger{color:var(--danger)}
+button:disabled{opacity:.5;cursor:default}
+.row{display:flex;gap:8px;align-items:center}
+.row>input{flex:1}
+.full{width:100%;margin-top:16px}
+.err{color:var(--danger);font-size:14px;margin-top:10px;min-height:1em}
+.top{position:sticky;top:0;background:var(--bg);padding:12px 16px;z-index:5;border-bottom:1px solid var(--line)}
+.top .row{max-width:640px;margin:0 auto}
+.list{list-style:none;margin:0;padding:0}
+.item{display:flex;gap:12px;align-items:center;padding:12px;background:var(--panel);border:1px solid var(--line);border-radius:12px;margin-bottom:8px;cursor:pointer}
+.badge{width:38px;height:38px;border-radius:10px;background:var(--accent);color:var(--accent-text);display:grid;place-items:center;font-weight:700;flex:none}
+.item .t{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item .s{color:var(--muted);font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item>div:not(.badge){min-width:0;flex:1}
+.status{font-size:13px;color:var(--muted);text-align:center;margin:6px 0 12px}
+.status.bad{color:var(--danger)}
+.sheet{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;z-index:20}
+.sheet .card{width:100%;max-width:640px;max-height:92vh;overflow:auto;border-radius:16px 16px 0 0;padding-bottom:calc(20px + env(safe-area-inset-bottom))}
+@media (min-width:700px){.sheet{align-items:center}.sheet .card{border-radius:16px}}
+.field{border-bottom:1px solid var(--line);padding:10px 0}
+.field .k{font-size:12px;color:var(--muted)}
+.field .v{word-break:break-all;white-space:pre-wrap;font-family:ui-monospace,Consolas,monospace;font-size:15px}
+.field .row{justify-content:space-between}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+.btns>button{flex:1}
+.gen{background:var(--field);border:1px solid var(--line);border-radius:10px;padding:10px;margin-top:8px}
+.gen .row{flex-wrap:wrap}
+.gen label{margin:0;display:flex;gap:6px;align-items:center;color:var(--text)}
+.gen input[type=checkbox]{width:auto}
+.gen input[type=range]{flex:1;padding:0}
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:14px;z-index:30}
+.fab{position:fixed;right:20px;bottom:calc(20px + env(safe-area-inset-bottom));width:56px;height:56px;border-radius:50%;font-size:28px;line-height:1;padding:0;box-shadow:0 4px 14px rgba(0,0,0,.25)}
+.empty{text-align:center;color:var(--muted);padding:40px 0}
+small.hint{display:block;color:var(--muted);font-size:12px;margin-top:4px}
+</style>
+</head>
+<body>
+
+<!-- First-time setup on this device -->
+<section id="setup" class="wrap hidden">
+  <div class="card">
+    <h1>Set up Vault on this device</h1>
+    <p class="muted">Your passwords are encrypted on this device with your master password before they are saved to a private GitHub repo. GitHub never sees them unencrypted.</p>
+    <label for="s-owner">GitHub username</label>
+    <input id="s-owner" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <label for="s-repo">Private repo name</label>
+    <input id="s-repo" value="vault-data" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <label for="s-token">GitHub access token</label>
+    <input id="s-token" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="github_pat_...">
+    <small class="hint">Fine-grained token with access to only that repo, permission Contents: read and write. It is stored on this device encrypted with your master password.</small>
+    <label for="s-pw">Master password</label>
+    <input id="s-pw" type="password" autocomplete="new-password">
+    <label for="s-pw2">Confirm master password <span class="muted">(only checked when creating a new vault)</span></label>
+    <input id="s-pw2" type="password" autocomplete="new-password">
+    <small class="hint">There is no way to recover your passwords if you forget this. Use a long passphrase.</small>
+    <button id="s-go" class="primary full">Connect</button>
+    <div id="s-err" class="err"></div>
+  </div>
+</section>
+
+<!-- Unlock -->
+<section id="unlock" class="wrap hidden">
+  <div class="card" style="margin-top:10vh">
+    <h1>Vault</h1>
+    <p class="muted" id="u-who"></p>
+    <label for="u-pw">Master password</label>
+    <input id="u-pw" type="password" autocomplete="current-password">
+    <div id="u-newbox" class="hidden">
+      <label for="u-pw-new">Your master password was changed on another device. Enter the new one:</label>
+      <input id="u-pw-new" type="password" autocomplete="current-password">
+    </div>
+    <button id="u-go" class="primary full">Unlock</button>
+    <div id="u-err" class="err"></div>
+    <button id="u-forget" class="danger full" style="margin-top:28px">Forget this device</button>
+  </div>
+</section>
+
+<!-- Main -->
+<section id="app" class="hidden">
+  <div class="top">
+    <div class="row">
+      <input id="q" type="search" placeholder="Search" autocomplete="off" autocapitalize="off" spellcheck="false">
+      <button id="b-menu" aria-label="Menu">☰</button>
+      <button id="b-lock">Lock</button>
+    </div>
+  </div>
+  <div class="wrap">
+    <div id="status" class="status"></div>
+    <ul id="list" class="list"></ul>
+  </div>
+  <button id="b-add" class="primary fab" aria-label="Add">+</button>
+</section>
+
+<!-- View entry -->
+<div id="view" class="sheet hidden"><div class="card">
+  <h2 id="v-name"></h2>
+  <div id="v-fields"></div>
+  <div class="btns">
+    <button id="v-edit">Edit</button>
+    <button id="v-del" class="danger">Delete</button>
+    <button id="v-close" class="primary">Close</button>
+  </div>
+</div></div>
+
+<!-- Edit entry -->
+<div id="edit" class="sheet hidden"><div class="card">
+  <h2 id="e-title">New entry</h2>
+  <label for="e-name">Name</label>
+  <input id="e-name" autocomplete="off">
+  <label for="e-user">Username / email</label>
+  <input id="e-user" autocomplete="off" autocapitalize="off" spellcheck="false">
+  <label for="e-pass">Password</label>
+  <div class="row">
+    <input id="e-pass" type="password" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <button id="e-show" type="button">Show</button>
+  </div>
+  <div class="gen">
+    <div class="row">
+      <label>Length <span id="g-len-v">20</span></label>
+      <input id="g-len" type="range" min="8" max="64" value="20">
+    </div>
+    <div class="row" style="margin-top:8px">
+      <label><input id="g-sym" type="checkbox" checked> Symbols</label>
+      <label><input id="g-num" type="checkbox" checked> Numbers</label>
+      <button id="g-go" type="button" style="margin-left:auto">Generate</button>
+    </div>
+  </div>
+  <label for="e-url">Website</label>
+  <input id="e-url" autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="url">
+  <label for="e-notes">Notes</label>
+  <textarea id="e-notes"></textarea>
+  <div class="btns">
+    <button id="e-cancel">Cancel</button>
+    <button id="e-save" class="primary">Save</button>
+  </div>
+  <div id="e-err" class="err"></div>
+</div></div>
+
+<!-- Menu -->
+<div id="menu" class="sheet hidden"><div class="card">
+  <h2>Settings</h2>
+  <div class="btns" style="flex-direction:column">
+    <button id="m-sync">Sync now</button>
+    <button id="m-export">Download encrypted backup</button>
+    <button id="m-chpw">Change master password</button>
+    <button id="m-forget" class="danger">Forget this device</button>
+    <button id="m-close" class="primary">Close</button>
+  </div>
+  <p class="muted" id="m-info"></p>
+</div></div>
+
+<!-- Change password -->
+<div id="chpw" class="sheet hidden"><div class="card">
+  <h2>Change master password</h2>
+  <label for="c-old">Current master password</label>
+  <input id="c-old" type="password" autocomplete="current-password">
+  <label for="c-new">New master password</label>
+  <input id="c-new" type="password" autocomplete="new-password">
+  <label for="c-new2">Confirm new master password</label>
+  <input id="c-new2" type="password" autocomplete="new-password">
+  <div class="btns">
+    <button id="c-cancel">Cancel</button>
+    <button id="c-go" class="primary">Change</button>
+  </div>
+  <div id="c-err" class="err"></div>
+</div></div>
+
+<div id="toast" class="toast hidden"></div>
+
+<script>
+'use strict';
+(() => {
+const ITER = 600000;              // PBKDF2-SHA256 iterations (OWASP 2023 recommendation)
+const IDLE_LOCK_MS = 5 * 60e3;    // lock after 5 min without activity
+const HIDDEN_LOCK_MS = 60e3;      // lock if app is in background for 1 min
+const CLIP_CLEAR_MS = 30e3;
+const LS = { cfg: 'pv.cfg', tok: 'pv.tok', cache: 'pv.cache' };
+
+const $ = id => document.getElementById(id);
+const te = new TextEncoder(), td = new TextDecoder();
+
+// ---------- storage ----------
+const lsGet = k => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+const lsClear = () => { try { Object.values(LS).forEach(k => localStorage.removeItem(k)); } catch {} };
+
+// ---------- crypto ----------
+function toB64(buf) {
+  const b = new Uint8Array(buf); let s = '';
+  for (let i = 0; i < b.length; i += 0x8000) s += String.fromCharCode.apply(null, b.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+function fromB64(s) {
+  const bin = atob(s); const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+const randBytes = n => crypto.getRandomValues(new Uint8Array(n));
+async function deriveKey(pw, salt, iter) {
+  const base = await crypto.subtle.importKey('raw', te.encode(pw), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: iter, hash: 'SHA-256' },
+    base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+}
+async function seal(key, salt, iter, data) {
+  const iv = randBytes(12);
+  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, te.encode(JSON.stringify(data)));
+  return { v: 1, kdf: 'PBKDF2-SHA256', iter, salt: toB64(salt), iv: toB64(iv), ct: toB64(ct) };
+}
+async function unseal(key, env) {
+  const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: fromB64(env.iv) }, key, fromB64(env.ct));
+  return JSON.parse(td.decode(pt));
+}
+const keyFor = (pw, env) => deriveKey(pw, fromB64(env.salt), env.iter);
+
+// ---------- state ----------
+let S = null; // { cfg, token, key, salt, iter, sha, vault, offline }
+function blankState(cfg) { return { cfg, token: null, key: null, salt: null, iter: ITER, sha: null, vault: null, offline: false }; }
+
+// ---------- GitHub ----------
+function ghHeaders(token) {
+  return { Authorization: 'Bearer ' + token, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' };
+}
+function contentsUrl(cfg) {
+  return 'https://api.github.com/repos/' + encodeURIComponent(cfg.owner) + '/' + encodeURIComponent(cfg.repo) +
+    '/contents/' + cfg.path.split('/').map(encodeURIComponent).join('/');
+}
+async function ghRepoInfo(cfg, token) {
+  const r = await fetch('https://api.github.com/repos/' + encodeURIComponent(cfg.owner) + '/' + encodeURIComponent(cfg.repo),
+    { headers: ghHeaders(token), cache: 'no-store' });
+  if (r.status === 401) throw new Error('GitHub rejected the token (expired or mistyped?).');
+  if (r.status === 404) throw new Error('Repo not found, or the token has no access to it.');
+  if (!r.ok) throw new Error('GitHub error ' + r.status);
+  return r.json();
+}
+async function fetchRemote(cfg, token) {
+  const r = await fetch(contentsUrl(cfg) + '?ref=' + encodeURIComponent(cfg.branch) + '&t=' + Date.now(),
+    { headers: ghHeaders(token), cache: 'no-store' });
+  if (r.status === 404) return null;
+  if (r.status === 401) throw new Error('GitHub rejected the token (expired?). Use "Forget this device" and set up with a new token.');
+  if (!r.ok) throw new Error('GitHub error ' + r.status);
+  const j = await r.json();
+  const env = JSON.parse(td.decode(fromB64(j.content.replace(/\s/g, ''))));
+  return { sha: j.sha, env };
+}
+async function putRemote(cfg, token, env, sha) {
+  const body = { message: 'update vault', content: btoa(JSON.stringify(env)), branch: cfg.branch };
+  if (sha) body.sha = sha;
+  const r = await fetch(contentsUrl(cfg), { method: 'PUT', headers: { ...ghHeaders(token), 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (r.status === 409 || (r.status === 422 && sha)) return { conflict: true };
+  if (!r.ok) throw new Error('Save failed: GitHub error ' + r.status);
+  return { sha: (await r.json()).content.sha };
+}
+
+// ---------- vault data ----------
+const newId = () => toB64(randBytes(12)).replace(/[+/=]/g, c => ({ '+': '-', '/': '_', '=': '' }[c]));
+function merge(a, b) {
+  const m = new Map();
+  for (const e of [...(a.entries || []), ...(b.entries || [])]) {
+    const cur = m.get(e.id);
+    if (!cur || (e.updated || 0) > (cur.updated || 0)) m.set(e.id, e);
+  }
+  return { entries: [...m.values()] };
+}
+const live = () => S.vault.entries.filter(e => !e.deleted);
+
+let saveChain = Promise.resolve();
+function persist() {
+  const run = async () => {
+    if (S.offline) throw new Error('Offline: changes cannot be saved right now.');
+    setStatus('Saving…');
+    let env = await seal(S.key, S.salt, S.iter, S.vault);
+    let res = await putRemote(S.cfg, S.token, env, S.sha);
+    if (res.conflict) {
+      // Someone else (another device) saved first: merge and retry once.
+      const remote = await fetchRemote(S.cfg, S.token);
+      if (remote) {
+        if (remote.env.salt !== toB64(S.salt)) throw new Error('Master password was changed on another device. Lock and unlock again.');
+        S.vault = merge(await unseal(S.key, remote.env), S.vault);
+        env = await seal(S.key, S.salt, S.iter, S.vault);
+        res = await putRemote(S.cfg, S.token, env, remote.sha);
+      } else {
+        res = await putRemote(S.cfg, S.token, env, null);
+      }
+      if (res.conflict) throw new Error('Save conflict. Try again.');
+    }
+    S.sha = res.sha;
+    lsSet(LS.cache, { sha: S.sha, env });
+    setStatus(syncLine());
+    render();
+  };
+  saveChain = saveChain.then(run, run);
+  return saveChain.catch(e => { setStatus(e.message, true); throw e; });
+}
+
+// ---------- UI helpers ----------
+const screens = ['setup', 'unlock', 'app'];
+function show(id) { screens.forEach(s => $(s).classList.toggle('hidden', s !== id)); }
+function sheet(id, on) { $(id).classList.toggle('hidden', !on); }
+function closeSheets() { ['view', 'edit', 'menu', 'chpw'].forEach(id => sheet(id, false)); }
+let toastT;
+function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.remove('hidden'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.add('hidden'), 1800); }
+function setStatus(msg, bad) { const s = $('status'); s.textContent = msg; s.classList.toggle('bad', !!bad); }
+function syncLine() { return S.offline ? 'Offline — read only (showing last synced copy)' : { const n = live().length; return n + (n === 1 ? ' item' : ' items') + ' · synced'; } }
+function busy(btn, on, label) { btn.disabled = on; if (label) btn.textContent = label; }
+function el(tag, props, ...kids) {
+  const n = document.createElement(tag);
+  if (props) for (const [k, v] of Object.entries(props)) { if (k === 'class') n.className = v; else if (k.startsWith('on')) n.addEventListener(k.slice(2), v); else n[k] = v; }
+  for (const k of kids) n.append(k);
+  return n;
+}
+
+let clipT;
+async function copy(text, what) {
+  try {
+    await navigator.clipboard.writeText(text);
+    toast((what || 'Copied') + ' — clears in 30s');
+    clearTimeout(clipT);
+    clipT = setTimeout(() => { navigator.clipboard.writeText('').catch(() => {}); }, CLIP_CLEAR_MS);
+  } catch { toast('Copy failed'); }
+}
+
+// ---------- list ----------
+function render() {
+  const q = $('q').value.trim().toLowerCase();
+  const list = $('list'); list.replaceChildren();
+  const items = live()
+    .filter(e => !q || [e.name, e.username, e.url, e.notes].some(f => (f || '').toLowerCase().includes(q)))
+    .sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' }));
+  if (!items.length) {
+    list.append(el('li', { class: 'empty', textContent: q ? 'No matches.' : 'No passwords yet. Tap + to add one.' }));
+    return;
+  }
+  for (const e of items) {
+    list.append(el('li', { class: 'item', onclick: () => openView(e.id) },
+      el('div', { class: 'badge', textContent: (e.name || '?').trim().charAt(0).toUpperCase() || '?' }),
+      el('div', null, el('div', { class: 't', textContent: e.name || '(no name)' }), el('div', { class: 's', textContent: e.username || e.url || '' })),
+    ));
+  }
+}
+
+// ---------- view ----------
+let viewId = null;
+function openView(id) {
+  const e = S.vault.entries.find(x => x.id === id); if (!e) return;
+  viewId = id;
+  $('v-name').textContent = e.name || '(no name)';
+  const f = $('v-fields'); f.replaceChildren();
+  const add = (k, v, opts = {}) => {
+    if (!v) return;
+    const val = el('div', { class: 'v', textContent: opts.secret ? '••••••••••' : v });
+    const btns = el('div', { class: 'row' });
+    if (opts.secret) {
+      let shown = false;
+      btns.append(el('button', { textContent: 'Show', onclick: ev => { shown = !shown; val.textContent = shown ? v : '••••••••••'; ev.target.textContent = shown ? 'Hide' : 'Show'; } }));
+    }
+    if (opts.copy) btns.append(el('button', { textContent: 'Copy', onclick: () => copy(v, k + ' copied') }));
+    if (opts.link && /^https?:\/\//i.test(v)) btns.append(el('button', { textContent: 'Open', onclick: () => { const w = window.open(v, '_blank', 'noopener,noreferrer'); if (w) w.opener = null; } }));
+    f.append(el('div', { class: 'field' }, el('div', { class: 'row' }, el('div', { style: 'min-width:0;flex:1' }, el('div', { class: 'k', textContent: k }), val), btns)));
+  };
+  add('Username', e.username, { copy: true });
+  add('Password', e.password, { copy: true, secret: true });
+  add('Website', e.url, { copy: true, link: true });
+  add('Notes', e.notes);
+  f.append(el('p', { class: 'muted', textContent: 'Last changed ' + new Date(e.updated).toLocaleString() }));
+  $('v-edit').disabled = $('v-del').disabled = S.offline;
+  sheet('view', true);
+}
+
+// ---------- edit ----------
+let editId = null;
+function openEdit(id) {
+  editId = id;
+  const e = id ? S.vault.entries.find(x => x.id === id) : {};
+  $('e-title').textContent = id ? 'Edit entry' : 'New entry';
+  $('e-name').value = e.name || ''; $('e-user').value = e.username || ''; $('e-pass').value = e.password || '';
+  $('e-url').value = e.url || ''; $('e-notes').value = e.notes || '';
+  $('e-pass').type = 'password'; $('e-show').textContent = 'Show'; $('e-err').textContent = '';
+  sheet('view', false); sheet('edit', true);
+  if (!id) { genInto(); $('e-name').focus(); }
+}
+function genPassword(len, useNum, useSym) {
+  const sets = ['abcdefghijkmnopqrstuvwxyz', 'ABCDEFGHJKLMNPQRSTUVWXYZ'];
+  if (useNum) sets.push('23456789');
+  if (useSym) sets.push('!@#$%^&*-_=+?.:');
+  const all = sets.join('');
+  const pick = n => { // unbiased random index via rejection sampling
+    const lim = Math.floor(0x100000000 / n) * n; const b = new Uint32Array(1);
+    do crypto.getRandomValues(b); while (b[0] >= lim);
+    return b[0] % n;
+  };
+  for (;;) {
+    let p = ''; for (let i = 0; i < len; i++) p += all[pick(all.length)];
+    if (sets.every(s => [...p].some(c => s.includes(c)))) return p;
+  }
+}
+function genInto() {
+  $('e-pass').value = genPassword(+$('g-len').value, $('g-num').checked, $('g-sym').checked);
+  $('e-pass').type = 'text'; $('e-show').textContent = 'Hide';
+}
+async function saveEdit() {
+  const name = $('e-name').value.trim();
+  if (!name) { $('e-err').textContent = 'Give it a name.'; return; }
+  const entry = { id: editId || newId(), name, username: $('e-user').value.trim(), password: $('e-pass').value,
+    url: $('e-url').value.trim(), notes: $('e-notes').value, updated: Date.now() };
+  const before = S.vault.entries;
+  S.vault = { entries: [...before.filter(x => x.id !== entry.id), entry] };
+  busy($('e-save'), true, 'Saving…');
+  try { await persist(); sheet('edit', false); toast('Saved'); }
+  catch (e) { S.vault = { entries: before }; $('e-err').textContent = e.message; }
+  finally { busy($('e-save'), false, 'Save'); }
+}
+async function deleteEntry() {
+  const e = S.vault.entries.find(x => x.id === viewId); if (!e) return;
+  if (!confirm('Delete "' + (e.name || 'this entry') + '"? This cannot be undone.')) return;
+  const before = S.vault.entries;
+  S.vault = { entries: [...before.filter(x => x.id !== viewId), { id: viewId, deleted: true, updated: Date.now() }] };
+  try { await persist(); sheet('view', false); toast('Deleted'); }
+  catch (err) { S.vault = { entries: before }; toast(err.message); }
+}
+
+// ---------- setup ----------
+async function doSetup() {
+  const err = $('s-err'); err.textContent = '';
+  const cfg = { owner: $('s-owner').value.trim(), repo: $('s-repo').value.trim(), path: 'vault.json', branch: 'main' };
+  const token = $('s-token').value.trim(), pw = $('s-pw').value, pw2 = $('s-pw2').value;
+  if (!cfg.owner || !cfg.repo || !token) { err.textContent = 'Fill in username, repo and token.'; return; }
+  if (pw.length < 10) { err.textContent = 'Use a master password of at least 10 characters (a long passphrase is best).'; return; }
+  busy($('s-go'), true, 'Connecting…');
+  try {
+    const info = await ghRepoInfo(cfg, token);
+    if (!info.private) throw new Error('That repo is PUBLIC. Your vault must live in a private repo.');
+    cfg.branch = info.default_branch || 'main';
+    const st = blankState(cfg); st.token = token;
+    const remote = await fetchRemote(cfg, token);
+    if (!remote) {
+      if (pw !== pw2) throw new Error('No vault found in that repo, so a new one will be created — the two master passwords must match.');
+      busy($('s-go'), true, 'Creating vault…');
+      st.salt = randBytes(16); st.key = await deriveKey(pw, st.salt, ITER);
+      st.vault = { entries: [] };
+      const env = await seal(st.key, st.salt, ITER, st.vault);
+      const res = await putRemote(cfg, token, env, null);
+      if (res.conflict) throw new Error('Could not create vault file. Try again.');
+      st.sha = res.sha; lsSet(LS.cache, { sha: st.sha, env });
+    } else {
+      busy($('s-go'), true, 'Unlocking…');
+      st.key = await keyFor(pw, remote.env);
+      try { st.vault = await unseal(st.key, remote.env); } catch { throw new Error('Found an existing vault, but that master password does not open it.'); }
+      st.salt = fromB64(remote.env.salt); st.iter = remote.env.iter; st.sha = remote.sha;
+      lsSet(LS.cache, remote);
+    }
+    await storeToken(pw, token);
+    lsSet(LS.cfg, cfg);
+    ['s-token', 's-pw', 's-pw2'].forEach(id => $(id).value = '');
+    S = st; enterApp();
+  } catch (e) { err.textContent = e.message; }
+  finally { busy($('s-go'), false, 'Connect'); }
+}
+async function storeToken(pw, token) {
+  const salt = randBytes(16);
+  lsSet(LS.tok, await seal(await deriveKey(pw, salt, ITER), salt, ITER, token));
+}
+
+// ---------- unlock ----------
+async function doUnlock() {
+  const err = $('u-err'); err.textContent = '';
+  const cfg = lsGet(LS.cfg), tokEnv = lsGet(LS.tok), cache = lsGet(LS.cache);
+  const pw = $('u-pw').value, pwNew = $('u-pw-new').value;
+  if (!pw) return;
+  busy($('u-go'), true, 'Unlocking…');
+  try {
+    // Start deriving the vault key in parallel with the token key (both are slow on purpose).
+    const vaultPw = pwNew || pw;
+    const cachedKeyP = cache ? keyFor(vaultPw, cache.env).catch(() => null) : Promise.resolve(null);
+    let token;
+    try { token = await unseal(await keyFor(pw, tokEnv), tokEnv); }
+    catch { throw new Error('Wrong master password.'); }
+
+    const st = blankState(cfg); st.token = token;
+    let remote = null;
+    try { remote = await fetchRemote(cfg, token); }
+    catch (e) {
+      if (!(e instanceof TypeError)) throw e; // TypeError = network failure → use offline copy
+      if (!cache) throw new Error('Offline, and no copy of the vault on this device yet.');
+      st.offline = true;
+    }
+    if (!st.offline && !remote) throw new Error('Vault file is missing from the repo.');
+    const src = remote || cache;
+    const key = (cache && src.env.salt === cache.env.salt && await cachedKeyP) || await keyFor(vaultPw, src.env);
+    try { st.vault = await unseal(key, src.env); }
+    catch {
+      if (pwNew) throw new Error('That new master password does not open the vault either.');
+      $('u-newbox').classList.remove('hidden'); $('u-pw-new').focus();
+      throw new Error('This device still has your old master password. Enter the new one below.');
+    }
+    if (pwNew) await storeToken(pwNew, token); // re-wrap the token with the new password
+    st.key = key; st.salt = fromB64(src.env.salt); st.iter = src.env.iter; st.sha = src.sha;
+    if (remote) lsSet(LS.cache, remote);
+    $('u-pw').value = $('u-pw-new').value = ''; $('u-newbox').classList.add('hidden');
+    S = st; enterApp();
+  } catch (e) { err.textContent = e.message; }
+  finally { busy($('u-go'), false, 'Unlock'); }
+}
+
+function enterApp() {
+  $('q').value = ''; show('app'); render(); setStatus(syncLine(), S.offline);
+  $('b-add').classList.toggle('hidden', S.offline);
+  bump();
+}
+function lock() {
+  S = null; closeSheets();
+  $('list').replaceChildren(); $('q').value = '';
+  showUnlock();
+}
+function showUnlock() {
+  const cfg = lsGet(LS.cfg);
+  $('u-who').textContent = cfg ? cfg.owner + '/' + cfg.repo : '';
+  show('unlock'); setTimeout(() => $('u-pw').focus(), 50);
+}
+function forget() {
+  if (!confirm('Remove Vault from this device? Your passwords stay safe on GitHub; you will need your token and master password to set this device up again.')) return;
+  lsClear(); S = null; closeSheets(); show('setup');
+}
+
+async function syncNow() {
+  try {
+    const remote = await fetchRemote(S.cfg, S.token);
+    if (!remote) throw new Error('Vault file is missing from the repo.');
+    if (remote.env.salt !== toB64(S.salt)) { toast('Master password changed elsewhere — unlock again.'); lock(); return; }
+    S.vault = merge(S.vault, await unseal(S.key, remote.env));
+    S.sha = remote.sha; S.offline = false; lsSet(LS.cache, remote);
+    $('b-add').classList.remove('hidden');
+    render(); setStatus(syncLine()); toast('Synced');
+  } catch (e) { setStatus(e instanceof TypeError ? 'Offline — could not sync' : e.message, true); }
+}
+
+async function changePw() {
+  const err = $('c-err'); err.textContent = '';
+  const old = $('c-old').value, nw = $('c-new').value, nw2 = $('c-new2').value;
+  if (nw.length < 10) { err.textContent = 'Use at least 10 characters.'; return; }
+  if (nw !== nw2) { err.textContent = 'New passwords do not match.'; return; }
+  busy($('c-go'), true, 'Changing…');
+  try {
+    const tokEnv = lsGet(LS.tok);
+    try { await unseal(await keyFor(old, tokEnv), tokEnv); } catch { throw new Error('Current master password is wrong.'); }
+    await syncNow();
+    if (S.offline) throw new Error('You need to be online to change the master password.');
+    const salt = randBytes(16), key = await deriveKey(nw, salt, ITER);
+    const env = await seal(key, salt, ITER, S.vault);
+    const res = await putRemote(S.cfg, S.token, env, S.sha);
+    if (res.conflict) throw new Error('Vault changed while updating. Try again.');
+    S.key = key; S.salt = salt; S.iter = ITER; S.sha = res.sha;
+    lsSet(LS.cache, { sha: res.sha, env });
+    await storeToken(nw, S.token);
+    ['c-old', 'c-new', 'c-new2'].forEach(id => $(id).value = '');
+    sheet('chpw', false); toast('Master password changed');
+  } catch (e) { err.textContent = e.message; }
+  finally { busy($('c-go'), false, 'Change'); }
+}
+
+function exportBackup() {
+  const c = lsGet(LS.cache); if (!c) return;
+  const a = el('a', { href: URL.createObjectURL(new Blob([JSON.stringify(c.env, null, 2)], { type: 'application/json' })),
+    download: 'vault-backup-' + new Date().toISOString().slice(0, 10) + '.json' });
+  document.body.append(a); a.click(); a.remove();
+  toast('Encrypted backup downloaded');
+}
+
+// ---------- auto-lock ----------
+let idleT, hiddenAt = 0;
+function bump() { if (!S) return; clearTimeout(idleT); idleT = setTimeout(lock, IDLE_LOCK_MS); }
+['pointerdown', 'keydown', 'scroll', 'touchstart'].forEach(ev => addEventListener(ev, bump, { passive: true }));
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) hiddenAt = Date.now();
+  else if (S && Date.now() - hiddenAt > HIDDEN_LOCK_MS) lock();
+});
+
+// ---------- wiring ----------
+const onEnter = (id, fn) => $(id).addEventListener('keydown', e => { if (e.key === 'Enter') fn(); });
+$('s-go').onclick = doSetup; onEnter('s-pw2', doSetup);
+$('u-go').onclick = doUnlock; onEnter('u-pw', doUnlock); onEnter('u-pw-new', doUnlock);
+$('u-forget').onclick = forget; $('m-forget').onclick = forget;
+$('b-lock').onclick = lock;
+$('b-add').onclick = () => openEdit(null);
+$('b-menu').onclick = () => { $('m-info').textContent = 'Vault: ' + S.cfg.owner + '/' + S.cfg.repo + ' · auto-locks after 5 min idle'; $('m-chpw').disabled = S.offline; sheet('menu', true); };
+$('m-close').onclick = () => sheet('menu', false);
+$('m-sync').onclick = () => { sheet('menu', false); syncNow(); };
+$('m-export').onclick = exportBackup;
+$('m-chpw').onclick = () => { sheet('menu', false); $('c-err').textContent = ''; sheet('chpw', true); };
+$('c-cancel').onclick = () => sheet('chpw', false); $('c-go').onclick = changePw;
+$('q').oninput = render;
+$('v-close').onclick = () => sheet('view', false);
+$('v-edit').onclick = () => openEdit(viewId);
+$('v-del').onclick = deleteEntry;
+$('e-cancel').onclick = () => sheet('edit', false);
+$('e-save').onclick = saveEdit;
+$('e-show').onclick = () => { const p = $('e-pass'); const h = p.type === 'password'; p.type = h ? 'text' : 'password'; $('e-show').textContent = h ? 'Hide' : 'Show'; };
+$('g-len').oninput = () => { $('g-len-v').textContent = $('g-len').value; };
+$('g-go').onclick = genInto;
+document.querySelectorAll('.sheet').forEach(s => s.addEventListener('click', e => { if (e.target === s && s.id !== 'edit') sheet(s.id, false); }));
+
+if (!crypto.subtle) { document.body.textContent = 'This page must be opened over HTTPS.'; return; }
+if (lsGet(LS.cfg) && lsGet(LS.tok)) showUnlock(); else show('setup');
+})();
+</script>
+</body>
+</html>
