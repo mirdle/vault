@@ -177,6 +177,8 @@ small.hint{display:block;color:var(--muted);font-size:12px;margin-top:4px}
   <h2>Settings</h2>
   <div class="btns" style="flex-direction:column">
     <button id="m-sync">Sync now</button>
+    <button id="m-import">Import passwords (Chrome / CSV)</button>
+    <input id="m-import-file" type="file" accept=".csv,text/csv" class="hidden">
     <button id="m-export">Download encrypted backup</button>
     <button id="m-chpw">Change master password</button>
     <button id="m-forget" class="danger">Forget this device</button>
@@ -597,6 +599,63 @@ async function changePw() {
   finally { busy($('c-go'), false, 'Change'); }
 }
 
+// ---------- import (Chrome, Edge, Firefox, Bitwarden, LastPass… CSV exports) ----------
+function parseCSV(text) {
+  text = text.replace(/^﻿/, '');
+  const rows = []; let row = [], f = '', q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) {
+      if (c === '"') { if (text[i + 1] === '"') { f += '"'; i++; } else q = false; }
+      else f += c;
+    } else if (c === '"') q = true;
+    else if (c === ',') { row.push(f); f = ''; }
+    else if (c === '\n' || c === '\r') {
+      if (c === '\r' && text[i + 1] === '\n') i++;
+      row.push(f); rows.push(row); row = []; f = '';
+    } else f += c;
+  }
+  if (f || row.length) { row.push(f); rows.push(row); }
+  return rows.filter(r => r.some(x => x.trim()));
+}
+const IMPORT_COLS = {
+  name: ['name', 'title', 'account'],
+  url: ['url', 'website', 'login_uri', 'origin', 'web site', 'hostname'],
+  username: ['username', 'login_username', 'login', 'email', 'user name', 'user'],
+  password: ['password', 'login_password'],
+  notes: ['note', 'notes', 'extra', 'comments'],
+};
+function hostOf(url) { try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return ''; } }
+async function importFile(file) {
+  try {
+    const rows = parseCSV(await file.text());
+    if (rows.length < 2) throw new Error('That file has no passwords in it.');
+    const head = rows[0].map(h => h.trim().toLowerCase());
+    const idx = {};
+    for (const k in IMPORT_COLS) idx[k] = head.findIndex(h => IMPORT_COLS[k].includes(h));
+    if (idx.password < 0) throw new Error("Couldn't find a password column. Is this a password export CSV?");
+    const sig = e => [e.url, e.username, e.password].join('\u0000');
+    const have = new Set(live().map(sig));
+    const now = Date.now(), fresh = []; let dup = 0;
+    for (const r of rows.slice(1)) {
+      const g = k => idx[k] >= 0 ? (r[idx[k]] || '') : '';
+      const e = { id: newId(), name: g('name').trim(), username: g('username').trim(), password: g('password'),
+        url: g('url').trim(), notes: g('notes'), updated: now };
+      if (!e.password && !e.username) continue;
+      if (!e.name) e.name = hostOf(e.url) || e.username || 'Imported';
+      if (have.has(sig(e))) { dup++; continue; }
+      have.add(sig(e)); fresh.push(e);
+    }
+    if (!fresh.length) { alert('Nothing new to import' + (dup ? ' — all ' + dup + ' were already in your vault.' : '.')); return; }
+    if (!confirm('Import ' + fresh.length + ' password' + (fresh.length === 1 ? '' : 's') + '?' + (dup ? '\n(' + dup + ' duplicate' + (dup === 1 ? '' : 's') + ' will be skipped.)' : ''))) return;
+    const before = S.vault.entries;
+    S.vault = { entries: [...before, ...fresh] };
+    try { await persist(); }
+    catch (e) { S.vault = { entries: before }; render(); throw e; }
+    alert('Imported ' + fresh.length + ' passwords.\n\nIMPORTANT: now delete the CSV file you exported (and empty the Recycle Bin). It contains all your passwords in plain text.');
+  } catch (e) { alert('Import failed: ' + e.message); }
+}
+
 function exportBackup() {
   const c = lsGet(LS.cache); if (!c) return;
   const a = el('a', { href: URL.createObjectURL(new Blob([JSON.stringify(c.env, null, 2)], { type: 'application/json' })),
@@ -621,7 +680,9 @@ $('u-go').onclick = doUnlock; onEnter('u-pw', doUnlock); onEnter('u-pw-new', doU
 $('u-forget').onclick = forget; $('m-forget').onclick = forget;
 $('b-lock').onclick = lock;
 $('b-add').onclick = () => openEdit(null);
-$('b-menu').onclick = () => { $('m-info').textContent = 'Vault: ' + S.cfg.owner + '/' + S.cfg.repo + ' · auto-locks after 5 min idle'; $('m-chpw').disabled = S.offline; sheet('menu', true); };
+$('b-menu').onclick = () => { $('m-info').textContent = 'Vault: ' + S.cfg.owner + '/' + S.cfg.repo + ' · auto-locks after 5 min idle'; $('m-chpw').disabled = $('m-import').disabled = S.offline; sheet('menu', true); };
+$('m-import').onclick = () => { $('m-import-file').value = ''; $('m-import-file').click(); };
+$('m-import-file').onchange = () => { const f = $('m-import-file').files[0]; if (f) { sheet('menu', false); importFile(f); } };
 $('m-close').onclick = () => sheet('menu', false);
 $('m-sync').onclick = () => { sheet('menu', false); syncNow(); };
 $('m-export').onclick = exportBackup;
